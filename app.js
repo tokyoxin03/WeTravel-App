@@ -234,6 +234,29 @@ createApp({
             editingState.flight = false;
             showToast('已移除航班資訊', { icon: 'ph-bold ph-trash', undo: () => { day.flight = removed; } });
         };
+        // 航班時間欄位改用 24 小時制的時/分下拉，原因同行程項目的時間欄位：原生 time input 顯示上下午與否會受裝置語系影響
+        const makeFlightTimeParts = (field) => ({
+            hour: computed({
+                get: () => (currentDay.value.flight?.[field] || '').split(':')[0] || '',
+                set: (h) => {
+                    if (!currentDay.value.flight) return;
+                    if (!h) { currentDay.value.flight[field] = ''; return; }
+                    const m = (currentDay.value.flight[field] || '').split(':')[1] || '00';
+                    currentDay.value.flight[field] = `${h}:${m}`;
+                }
+            }),
+            minute: computed({
+                get: () => (currentDay.value.flight?.[field] || '').split(':')[1] || '',
+                set: (m) => {
+                    if (!currentDay.value.flight) return;
+                    if (!m) { currentDay.value.flight[field] = ''; return; }
+                    const h = (currentDay.value.flight[field] || '').split(':')[0] || '00';
+                    currentDay.value.flight[field] = `${h}:${m}`;
+                }
+            })
+        });
+        const { hour: flightStartHour, minute: flightStartMinute } = makeFlightTimeParts('startTime');
+        const { hour: flightEndHour, minute: flightEndMinute } = makeFlightTimeParts('endTime');
         const getDotColor = (t) => { if (t === 'food') return 'bg-orange-400 border-orange-100 ring-2 ring-orange-50'; if (t === 'shop') return 'bg-pink-400 border-pink-100 ring-2 ring-pink-50'; if (t === 'transport' || t === 'flight') return 'bg-blue-500 border-blue-100 ring-2 ring-blue-50'; return 'bg-primary-500 border-primary-100 ring-2 ring-primary-50'; };
         const updateParticipants = () => { participants.value = participantsStr.value.split(',').map(s => s.trim()).filter(s => s); };
         const isUrl = (str) => { if (!str) return false; try { new URL(str); return true; } catch { return /^https?:\/\//i.test(str); } };
@@ -1097,6 +1120,7 @@ createApp({
         return {
             viewMode, currentDayIdx, days, currentDay, participants, participantsStr, updateParticipants,
             getExternalMapLink, removeFlight, addDay, scrollDays,
+            flightStartHour, flightStartMinute, flightEndHour, flightEndMinute,
             showDaySwap, swapTargetDay, otherDayOptions, confirmSwapDay,
             expenses, sortedExpenses, newExpense, totalExpense, addExpense,
             paidByPerson, exchangeRate, fxForeign, fxTwd, updateFxFromForeign, updateFxFromTwd,
