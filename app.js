@@ -269,6 +269,40 @@ createApp({
             return a.time.localeCompare(b.time);
         });
 
+        // 兩個行程項目之間的交通方式（純手動記錄，不自動計算距離/時間）
+        const TRANSPORT_OPTIONS = [
+            { key: 'walk', emoji: '🚶', label: '步行' },
+            { key: 'subway', emoji: '🚇', label: '捷運' },
+            { key: 'bus', emoji: '🚌', label: '公車' },
+            { key: 'taxi', emoji: '🚕', label: '計程車' },
+            { key: 'train', emoji: '🚄', label: '火車' },
+            { key: 'car', emoji: '🚗', label: '開車' },
+            { key: 'bike', emoji: '🚴', label: '腳踏車' },
+            { key: 'ferry', emoji: '⛴️', label: '渡輪' }
+        ];
+        const transportOption = (mode) => TRANSPORT_OPTIONS.find((o) => o.key === mode);
+        const transportModal = reactive({ show: false, itemId: null, draft: null });
+        const openTransportModal = (item) => {
+            transportModal.itemId = item.id;
+            transportModal.draft = { mode: item.transportMode || '', note: item.transportNote || '' };
+            transportModal.show = true;
+        };
+        const saveTransportModal = () => {
+            const day = currentDay.value;
+            const item = (day?.items || []).find((i) => i && i.id === transportModal.itemId);
+            if (item) {
+                item.transportMode = transportModal.draft.mode || null;
+                item.transportNote = transportModal.draft.note || '';
+            }
+            transportModal.show = false;
+        };
+        const clearTransportModal = () => {
+            if (!transportModal.draft) return;
+            transportModal.draft.mode = '';
+            transportModal.draft.note = '';
+            saveTransportModal();
+        };
+
         // 行程項目彈窗
         const itemModal = reactive({ show: false, mode: 'add', targetId: null, draft: null });
         const showItemCopy = ref(false);
@@ -1145,6 +1179,7 @@ createApp({
             showJoinInput, joinTripUrl, joinTrip,
             dialog, dialogAnswer, toast, undoToast,
             itemModal, openItemModal, saveItemModal, deleteItemFromModal, itemTimeHour, itemTimeMinute,
+            TRANSPORT_OPTIONS, transportOption, transportModal, openTransportModal, saveTransportModal, clearTransportModal,
             showItemCopy, copyTargetDay, dayOptionsForCopy, toggleItemCopy, confirmCopyItem,
             locModal, openLocModal, saveLocModal, deleteLocFromModal,
             expModal, openExpModal, saveExpModal, deleteExpFromModal,
