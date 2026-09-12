@@ -262,12 +262,6 @@ createApp({
         const isUrl = (str) => { if (!str) return false; try { new URL(str); return true; } catch { return /^https?:\/\//i.test(str); } };
 
         // ---- 新增/編輯統一走底部彈窗（draft 草稿制：儲存才寫回，取消不留痕）----
-        const sortItemsByTime = (items) => items.sort((a, b) => {
-            if (!a.time && !b.time) return 0;
-            if (!a.time) return 1;
-            if (!b.time) return -1;
-            return a.time.localeCompare(b.time);
-        });
 
         // 兩個行程項目之間的交通方式（純手動記錄，不自動計算距離/時間）
         const TRANSPORT_OPTIONS = [
@@ -349,7 +343,6 @@ createApp({
             } else {
                 day.items.push({ ...itemModal.draft });
             }
-            sortItemsByTime(day.items); // 保留鐵則：完成編輯後依時間自動排序
             itemModal.show = false;
         };
         // 複製行程項目到本日或其他天（下拉選單預設本日，跟「天數對調」同一套介面）
@@ -365,7 +358,6 @@ createApp({
             if (!targetDay) return;
             const newItem = { ...itemModal.draft, id: generateId() };
             targetDay.items.push(newItem);
-            sortItemsByTime(targetDay.items);
             showItemCopy.value = false;
             copyTargetDay.value = null;
             itemModal.show = false;
