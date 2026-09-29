@@ -416,10 +416,15 @@
             <!-- Row 1: Menu, Title, Share -->
             <div class="px-5 py-3 flex justify-between items-center bg-white/50 backdrop-blur-sm z-30 relative">
                 <div class="flex items-center gap-3 min-w-0 flex-1">
-                    <button @click="showTripMenu = true"
+                    <button v-if="!isReadOnly" @click="showTripMenu = true"
                         class="w-11 h-11 rounded-full flex items-center justify-center text-stone-500 hover:scale-105 transition active:scale-95 shrink-0 border-2 border-white/50 shadow-sm">
                         <img src="assets/icn_home.png" class="w-9 h-9 object-contain" alt="Home">
                     </button>
+                    <span v-else
+                        class="w-11 h-11 rounded-full flex items-center justify-center text-stone-400 shrink-0 border-2 border-white/50 shadow-sm bg-stone-50"
+                        title="唯讀模式">
+                        <i class="ph-bold ph-eye text-lg"></i>
+                    </span>
 
                     <!-- Destination & Weather Info -->
                     <div class="overflow-hidden min-w-0 flex-1">
@@ -464,10 +469,29 @@
                     </div>
 
                     <!-- Share Button (Moved to right) -->
-                    <button @click="shareTrip"
-                        class="w-12 h-12 rounded-full flex items-center justify-center text-stone-500 hover:bg-white hover:shadow-sm hover:text-stone-800 transition active:scale-95 shrink-0">
-                        <img src="assets/icn_share.png" class="w-12 h-12 object-contain" alt="Share">
-                    </button>
+                    <div v-if="!isReadOnly" class="relative shrink-0">
+                        <button @click="showShareModal = !showShareModal"
+                            class="w-12 h-12 rounded-full flex items-center justify-center text-stone-500 hover:bg-white hover:shadow-sm hover:text-stone-800 transition active:scale-95">
+                            <img src="assets/icn_share.png" class="w-12 h-12 object-contain" alt="Share">
+                        </button>
+                        <transition name="fade">
+                            <div v-if="showShareModal" class="absolute inset-0 z-40" @click="showShareModal = false"
+                                style="position: fixed; inset: 0;"></div>
+                        </transition>
+                        <transition name="fade">
+                            <div v-if="showShareModal"
+                                class="absolute right-0 top-14 z-50 w-48 bg-white rounded-2xl shadow-xl border border-stone-100 overflow-hidden py-1.5">
+                                <button @click="shareTrip(false)"
+                                    class="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-stone-700 hover:bg-stone-50 transition text-left">
+                                    <i class="ph-bold ph-pencil-simple text-primary-500"></i> 分享可編輯連結
+                                </button>
+                                <button @click="shareTrip(true)"
+                                    class="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-stone-700 hover:bg-stone-50 transition text-left">
+                                    <i class="ph-bold ph-eye text-stone-400"></i> 分享唯讀連結
+                                </button>
+                            </div>
+                        </transition>
+                    </div>
                 </div>
             </div>
 
@@ -514,7 +538,7 @@
                                 1 }}</span>
                             {{ currentDay.date || '未設定日期' }}
                         </h2>
-                        <button v-if="days.length > 1" @click="showDaySwap = !showDaySwap" aria-label="與其他天對調"
+                        <button v-if="days.length > 1 && !isReadOnly" @click="showDaySwap = !showDaySwap" aria-label="與其他天對調"
                             class="w-9 h-9 rounded-full flex items-center justify-center transition"
                             :class="showDaySwap ? 'bg-primary-100 text-primary-600' : 'text-stone-400 hover:bg-stone-100'">
                             <i class="ph-bold ph-arrows-left-right"></i>
@@ -563,7 +587,7 @@
                                 </div>
 
                                 <!-- 瀏覽模式：編輯按鈕 -->
-                                <div v-else class="absolute top-4 right-4 z-20">
+                                <div v-else-if="!isReadOnly" class="absolute top-4 right-4 z-20">
                                     <button @click="editingState.flight = true"
                                         class="w-8 h-8 flex items-center justify-center bg-white/40 backdrop-blur text-primary-400 hover:text-primary-600 hover:bg-white rounded-full transition border border-white/60">
                                         <i class="ph-bold ph-pencil-simple text-base"></i>
@@ -679,7 +703,7 @@
                                 </div>
                             </div>
 
-                            <button v-else @click="toggleFlightCard"
+                            <button v-else-if="!isReadOnly" @click="toggleFlightCard"
                                 class="w-full py-1.5 border-4 border-dashed border-primary-100 rounded-[2rem] text-primary-300 hover:border-primary-300 hover:text-primary-500 hover:bg-primary-50/50 transition flex items-center justify-center gap-2 group bg-white/50">
                                 <i
                                     class="ph-duotone ph-airplane-tilt text-xl group-hover:-rotate-12 transition-transform duration-300"></i>
@@ -700,7 +724,7 @@
                                     class="bg-white rounded-2xl shadow-soft border border-stone-100 transition-all duration-300 overflow-hidden relative cursor-pointer active:bg-stone-50 hover:shadow-lg"
                                     style="background-image: url('assets/kitty_face_pink.png'); background-repeat: no-repeat; background-position: center; background-size: cover;">
 
-                                    <i
+                                    <i v-if="!isReadOnly"
                                         class="ph-bold ph-pencil-simple text-stone-300 absolute top-3 right-3 z-20 pointer-events-none"></i>
 
                                     <div class="flex gap-3 p-1 pr-3 items-start relative">
@@ -748,13 +772,19 @@
                                     </div>
                                 </div>
 
-                                <!-- 交通方式（連接到下一個項目，純手動記錄） -->
-                                <button v-if="idx < currentDay.items.length - 1" @click.stop="openTransportModal(item)"
+                                <!-- 交通方式（連接到下一個項目，純手動記錄）；唯讀模式下沒設定就不顯示、有設定則顯示但不可點 -->
+                                <button v-if="idx < currentDay.items.length - 1 && !isReadOnly" @click.stop="openTransportModal(item)"
                                     class="flex items-center gap-1.5 mt-3 ml-1 text-xs font-bold text-stone-400 hover:text-primary-500 transition">
                                     <span class="text-base leading-none">{{ transportOption(item.transportMode)?.emoji || '➕' }}</span>
                                     <span>{{ transportOption(item.transportMode)?.label || '設定交通方式' }}</span>
                                     <span v-if="item.transportNote" class="text-stone-300 font-normal">・{{ item.transportNote }}</span>
                                 </button>
+                                <div v-else-if="idx < currentDay.items.length - 1 && transportOption(item.transportMode)"
+                                    class="flex items-center gap-1.5 mt-3 ml-1 text-xs font-bold text-stone-400">
+                                    <span class="text-base leading-none">{{ transportOption(item.transportMode).emoji }}</span>
+                                    <span>{{ transportOption(item.transportMode).label }}</span>
+                                    <span v-if="item.transportNote" class="text-stone-300 font-normal">・{{ item.transportNote }}</span>
+                                </div>
                             </div>
                         </template>
 
@@ -768,18 +798,18 @@
                         <h2 class="text-2xl font-black text-stone-800 flex items-center gap-2">
                             <img src="assets/bow_pink.png" class="w-8 h-8 object-contain" alt="Bow"> 口袋名單
                         </h2>
-                        <p class="text-sm text-stone-500 pl-1">點卡片可編輯・按住 ⠿ 拖曳排序</p>
+                        <p class="text-sm text-stone-500 pl-1">{{ isReadOnly ? '唯讀模式，僅供瀏覽' : '點卡片可編輯・按住 ⠿ 拖曳排序' }}</p>
                     </div>
 
                     <div id="saved-locations-list" class="space-y-4">
                         <div v-for="loc in savedLocations" :key="loc.id" :data-id="loc.id"
                             class="location-card bg-white rounded-2xl shadow-sm border border-stone-100 transition-all relative overflow-hidden">
                             <!-- 拖曳把手（touch-none 讓 iOS 不搶手勢，是真機能拖的關鍵） -->
-                            <div class="loc-drag-handle absolute left-0 top-0 bottom-0 w-8 flex items-center justify-center touch-none cursor-move text-stone-300 z-20">
+                            <div v-if="!isReadOnly" class="loc-drag-handle absolute left-0 top-0 bottom-0 w-8 flex items-center justify-center touch-none cursor-move text-stone-300 z-20">
                                 <i class="ph-bold ph-dots-six-vertical text-xl"></i>
                             </div>
                             <!-- 點一下開彈窗編輯 -->
-                            <div @click="openLocModal(loc)" class="py-4 pr-4 pl-9 cursor-pointer active:bg-stone-50 relative">
+                            <div @click="openLocModal(loc)" :class="isReadOnly ? 'py-4 pr-4 pl-4' : 'py-4 pr-4 pl-9'" class="cursor-pointer active:bg-stone-50 relative">
                                 <img src="assets/kitty1.png"
                                     class="absolute bottom-1 right-2 w-16 h-16 object-contain opacity-15 pointer-events-none z-0"
                                     alt="">
@@ -795,7 +825,7 @@
                                             <div class="font-bold text-lg text-stone-800 truncate">{{ loc.name || '未命名地點' }}
                                             </div>
                                         </div>
-                                        <i class="ph-bold ph-pencil-simple text-stone-300 shrink-0"></i>
+                                        <i v-if="!isReadOnly" class="ph-bold ph-pencil-simple text-stone-300 shrink-0"></i>
                                     </div>
                                     <a v-if="loc.link || loc.name" :href="getExternalMapLink(loc.link || loc.name)" target="_blank" @click.stop
                                         class="self-start inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all border bg-primary-50 text-primary-700 border-primary-100 hover:bg-primary-100">
@@ -809,7 +839,7 @@
                         </div>
                     </div>
 
-                    <button @click="openLocModal()"
+                    <button v-if="!isReadOnly" @click="openLocModal()"
                         class="w-full py-4 border-2 border-dashed border-stone-300 rounded-2xl text-stone-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition flex items-center justify-center gap-2 font-bold">
                         <i class="ph-bold ph-plus"></i> 新增地點
                     </button>
@@ -876,13 +906,13 @@
                                     <span v-for="p in participants" :key="p"
                                         class="inline-flex items-center gap-1.5 bg-stone-100 rounded-full pl-3 pr-1.5 py-1.5 text-sm font-bold text-stone-700">
                                         {{ p }}
-                                        <button @click="removeParticipant(p)"
+                                        <button v-if="!isReadOnly" @click="removeParticipant(p)"
                                             class="w-5 h-5 flex items-center justify-center rounded-full text-stone-400 hover:bg-stone-300 hover:text-white transition">
                                             <i class="ph-bold ph-x text-xs"></i>
                                         </button>
                                     </span>
                                 </div>
-                                <div class="flex gap-2">
+                                <div v-if="!isReadOnly" class="flex gap-2">
                                     <input v-model="newParticipant" @keyup.enter="addParticipant" placeholder="新增成員名字"
                                         class="flex-1 bg-stone-50 border-none rounded-xl text-sm font-bold text-stone-700 py-2.5 px-3 focus:ring-2 focus:ring-primary-200">
                                     <button @click="addParticipant"
@@ -923,7 +953,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-white p-4 rounded-3xl border border-stone-100 shadow-sm mb-6">
+                    <div v-if="!isReadOnly" class="bg-white p-4 rounded-3xl border border-stone-100 shadow-sm mb-6">
                         <div class="mb-3 flex items-end gap-2">
                             <div class="flex-[2] min-w-0">
                                 <div class="text-[10px] text-stone-500 mb-1 pl-1">項目</div>
@@ -1006,7 +1036,7 @@
                                 <div class="flex items-center gap-2 shrink-0">
                                     <span class="font-mono font-bold text-stone-800 text-lg">{{ currencySymbol }}{{
                                         exp.amount.toLocaleString() }}</span>
-                                    <i class="ph-bold ph-pencil-simple text-stone-300"></i>
+                                    <i v-if="!isReadOnly" class="ph-bold ph-pencil-simple text-stone-300"></i>
                                 </div>
                             </div>
                         </div>
@@ -1020,7 +1050,7 @@
                             <h2 class="text-2xl font-black text-stone-800 flex items-center gap-2">
                                 <img src="assets/bow_red.png" class="w-8 h-8 object-contain" alt="Bow"> 旅遊清單
                             </h2>
-                            <p class="text-sm text-stone-500 pl-1">點卡片可編輯・點圓圈打勾</p>
+                            <p class="text-sm text-stone-500 pl-1">{{ isReadOnly ? '唯讀模式，僅供瀏覽' : '點卡片可編輯・點圓圈打勾' }}</p>
                         </div>
                         <div class="relative shrink-0">
                             <select v-model="activeChecklistMember" aria-label="目前操作角色"
@@ -1038,12 +1068,14 @@
                         class="bg-white rounded-3xl border border-stone-100 shadow-soft p-8 text-center space-y-4">
                         <i class="ph-bold ph-suitcase-rolling text-5xl text-stone-200"></i>
                         <p class="text-sm text-stone-500 leading-relaxed">這趟旅程還沒有打包清單</p>
-                        <button @click="seedDefaultChecklist"
-                            class="js-seed-btn w-full py-3.5 bg-primary-500 text-white rounded-2xl font-bold shadow-md shadow-primary-500/30 active:scale-95 transition">
-                            帶入預設清單（75 項）</button>
-                        <button @click="openCheckModal()"
-                            class="w-full py-3 border-2 border-dashed border-stone-200 rounded-2xl text-stone-500 font-bold hover:border-primary-400 hover:text-primary-600 transition">
-                            自己新增</button>
+                        <template v-if="!isReadOnly">
+                            <button @click="seedDefaultChecklist"
+                                class="js-seed-btn w-full py-3.5 bg-primary-500 text-white rounded-2xl font-bold shadow-md shadow-primary-500/30 active:scale-95 transition">
+                                帶入預設清單（75 項）</button>
+                            <button @click="openCheckModal()"
+                                class="w-full py-3 border-2 border-dashed border-stone-200 rounded-2xl text-stone-500 font-bold hover:border-primary-400 hover:text-primary-600 transition">
+                                自己新增</button>
+                        </template>
                     </div>
 
                     <template v-else>
@@ -1057,7 +1089,7 @@
                                     <span class="text-primary-600 font-black">{{ p.done }}/{{ p.total }}</span>
                                 </span>
                             </div>
-                            <button @click="resetChecklist" aria-label="重設目前成員的勾選"
+                            <button v-if="!isReadOnly" @click="resetChecklist" aria-label="重設目前成員的勾選"
                                 class="shrink-0 w-9 h-9 rounded-full bg-stone-100 text-stone-500 flex items-center justify-center hover:bg-stone-200 transition">
                                 <i class="ph-bold ph-arrow-counter-clockwise"></i>
                             </button>
@@ -1089,13 +1121,14 @@
                                             <span class="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md border"
                                                 :class="LUGGAGE_META[item.luggage]?.cls">{{
                                                 LUGGAGE_META[item.luggage]?.label }}</span>
-                                            <i class="ph-bold ph-pencil-simple text-stone-300 shrink-0 ml-auto"></i>
+                                            <i v-if="!isReadOnly" class="ph-bold ph-pencil-simple text-stone-300 shrink-0 ml-auto"></i>
                                         </div>
                                         <div v-if="item.note" class="text-sm text-stone-500 truncate mt-0.5">{{
                                             item.note }}</div>
                                     </div>
                                     <div class="shrink-0">
                                         <button @click="toggleCheck(item, activeChecklistMember)"
+                                            :class="{ 'opacity-40 pointer-events-none': isReadOnly }"
                                             class="check-circle w-7 h-7 rounded-full border-2 flex items-center justify-center transition active:scale-90"
                                             :class="item.checkedBy?.[activeChecklistMember] ? 'is-checked bg-primary-500 border-primary-500 text-white' : 'border-stone-200 text-transparent'"
                                             :aria-label="(memberLabel(activeChecklistMember) || '共用') + (item.checkedBy?.[activeChecklistMember] ? ' 已勾' : ' 未勾')">
@@ -1106,7 +1139,7 @@
                             </div>
                         </div>
 
-                        <button @click="openCheckModal()"
+                        <button v-if="!isReadOnly" @click="openCheckModal()"
                             class="w-full py-4 border-2 border-dashed border-stone-300 rounded-2xl text-stone-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition flex items-center justify-center gap-2 font-bold">
                             <i class="ph-bold ph-plus"></i> 新增項目
                         </button>
@@ -1240,7 +1273,7 @@
                             </div>
 
                             <div v-show="showPaymentMethods" class="relative z-10 mt-4 space-y-4">
-                                <div class="flex gap-2">
+                                <div v-if="!isReadOnly" class="flex gap-2">
                                     <input v-model="newPaymentMethod" @keyup.enter="addPaymentMethod" placeholder="例如: 現金、信用卡"
                                         class="flex-1 min-w-0 bg-stone-50 border-none rounded-xl text-sm font-bold text-stone-700 py-2.5 px-3 focus:ring-2 focus:ring-primary-200">
                                     <input v-model.number="newPaymentMethodLimit" @keyup.enter="addPaymentMethod" type="number"
@@ -1265,7 +1298,7 @@
                                                 <i class="ph-bold ph-notebook shrink-0"></i><span class="truncate">{{ m.note }}</span>
                                             </div>
                                         </div>
-                                        <i class="ph-bold ph-pencil-simple text-stone-300 shrink-0"></i>
+                                        <i v-if="!isReadOnly" class="ph-bold ph-pencil-simple text-stone-300 shrink-0"></i>
                                     </div>
                                 </div>
                             </div>
@@ -1561,7 +1594,7 @@
 
         <!-- Floating Action Button (User Custom Button) -->
         <div class="fixed right-6 z-50" style="bottom: calc(5.5rem + env(safe-area-inset-bottom))"
-            v-if="viewMode === 'plan' && !showSetupModal && !showTripMenu">
+            v-if="viewMode === 'plan' && !showSetupModal && !showTripMenu && !isReadOnly">
             <button @click="openItemModal()"
                 class="w-14 h-14 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full shadow-glow flex items-center justify-center text-white hover:scale-110 transition-transform active:scale-95 relative group border-4 border-white/50">
                 <!-- Icon -->
@@ -2084,7 +2117,7 @@
         })();
     </script>
 
-    <script type="module" src="./app.js?v=75"></script>
+    <script type="module" src="./app.js?v=76"></script>
 
     <script>
         setTimeout(() => {

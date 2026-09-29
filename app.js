@@ -32,6 +32,8 @@ createApp({
         const showShareModal = ref(false);
         const showJoinInput = ref(false);
         const joinTripUrl = ref('');
+        // 唯讀模式：連結帶 ?view=1 開啟時，畫面層級鎖住所有編輯／新增／刪除入口（純前端防呆，非資料庫權限）
+        const isReadOnly = ref(new URLSearchParams(window.location.search).get('view') === '1');
 
         const errorMap = {
             'unavailable': '無法連線到伺服器，請檢查網路。',
@@ -101,6 +103,7 @@ createApp({
         // 成員新增/刪除（直接同步 participantsStr 供存檔；participants 為顯示來源）
         const newParticipant = ref('');
         const addParticipant = () => {
+            if (isReadOnly.value) return;
             const name = newParticipant.value.trim();
             if (!name || participants.value.includes(name)) { newParticipant.value = ''; return; }
             participants.value.push(name);
@@ -109,6 +112,7 @@ createApp({
             newParticipant.value = '';
         };
         const removeParticipant = (name) => {
+            if (isReadOnly.value) return;
             participants.value = participants.value.filter(p => p !== name);
             participantsStr.value = participants.value.join(', ');
             if (newExpense.value.payer === name) newExpense.value.payer = participants.value[0] || '';
@@ -119,6 +123,7 @@ createApp({
         const newPaymentMethod = ref('');
         const newPaymentMethodLimit = ref('');
         const addPaymentMethod = () => {
+            if (isReadOnly.value) return;
             const name = newPaymentMethod.value.trim();
             if (!name || paymentMethods.value.some(m => m.name === name)) { newPaymentMethod.value = ''; newPaymentMethodLimit.value = ''; return; }
             const limit = newPaymentMethodLimit.value ? Number(newPaymentMethodLimit.value) : null;
@@ -132,6 +137,7 @@ createApp({
         };
         const pmModal = reactive({ show: false, index: null, draft: null });
         const openPmModal = (idx) => {
+            if (isReadOnly.value) return;
             pmModal.index = idx;
             pmModal.draft = JSON.parse(JSON.stringify(paymentMethods.value[idx]));
             if (pmModal.draft.limit == null) pmModal.draft.limit = '';
@@ -225,8 +231,9 @@ createApp({
             if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
         };
 
-        const toggleFlightCard = () => { if (currentDay.value.flight) { } else { currentDay.value.flight = { type: 'arrival', startTime: '10:00', startAirport: 'TPE', number: '', endTime: '14:00', endAirport: 'DEST', arrivalOffset: 0 }; editingState.flight = true; } };
+        const toggleFlightCard = () => { if (isReadOnly.value) return; if (currentDay.value.flight) { } else { currentDay.value.flight = { type: 'arrival', startTime: '10:00', startAirport: 'TPE', number: '', endTime: '14:00', endAirport: 'DEST', arrivalOffset: 0 }; editingState.flight = true; } };
         const removeFlight = () => {
+            if (isReadOnly.value) return;
             const day = days.value[currentDayIdx.value];
             if (!day || !day.flight) return;
             const removed = day.flight;
@@ -277,6 +284,7 @@ createApp({
         const transportOption = (mode) => TRANSPORT_OPTIONS.find((o) => o.key === mode);
         const transportModal = reactive({ show: false, itemId: null, draft: null });
         const openTransportModal = (item) => {
+            if (isReadOnly.value) return;
             transportModal.itemId = item.id;
             transportModal.draft = { mode: item.transportMode || '', note: item.transportNote || '' };
             transportModal.show = true;
@@ -302,6 +310,7 @@ createApp({
         const showItemCopy = ref(false);
         const copyTargetDay = ref(null);
         const openItemModal = (item = null) => {
+            if (isReadOnly.value) return;
             showItemCopy.value = false;
             copyTargetDay.value = null;
             if (item) {
@@ -348,6 +357,7 @@ createApp({
         // 複製行程項目到本日或其他天（下拉選單預設本日，跟「天數對調」同一套介面）
         const dayOptionsForCopy = computed(() => days.value.map((d, i) => ({ i, d })));
         const toggleItemCopy = () => {
+            if (isReadOnly.value) return;
             showItemCopy.value = !showItemCopy.value;
             if (showItemCopy.value) copyTargetDay.value = currentDayIdx.value;
         };
@@ -398,6 +408,7 @@ createApp({
             days.value[idxB] = { date: dateB, shortDate: shortDateB, fullDate: fullDateB, ...contentA };
         };
         const confirmSwapDay = () => {
+            if (isReadOnly.value) return;
             if (swapTargetDay.value === null || swapTargetDay.value === currentDayIdx.value) return;
             const from = currentDayIdx.value;
             const to = swapTargetDay.value;
@@ -411,6 +422,7 @@ createApp({
         // 口袋名單彈窗
         const locModal = reactive({ show: false, mode: 'add', targetId: null, draft: null });
         const openLocModal = (loc = null) => {
+            if (isReadOnly.value) return;
             if (loc) {
                 locModal.mode = 'edit'; locModal.targetId = loc.id;
                 locModal.draft = JSON.parse(JSON.stringify(loc));
@@ -442,6 +454,7 @@ createApp({
         // ---- 旅遊清單（項目共享、每人各勾各的；成員空時退化單一共用框 __shared__）----
         const seedChecklist = () => CHECKLIST_TEMPLATE.map(t => ({ ...t, id: generateId(), checkedBy: {} }));
         const seedDefaultChecklist = () => {
+            if (isReadOnly.value) return;
             checklist.value = seedChecklist();
             showToast(`已帶入預設清單（${CHECKLIST_TEMPLATE.length} 項）`, { icon: 'ph-bold ph-suitcase-rolling' });
         };
@@ -454,6 +467,7 @@ createApp({
         }, { immediate: true });
         watch(activeChecklistMember, (v) => { if (v) localStorage.setItem('wetravel_active_checklist_member', v); });
         const toggleCheck = (item, member) => {
+            if (isReadOnly.value) return;
             if (!item.checkedBy) item.checkedBy = {};
             item.checkedBy[member] = !item.checkedBy[member];
         };
@@ -483,6 +497,7 @@ createApp({
             }, 400);
         });
         const resetChecklist = async () => {
+            if (isReadOnly.value) return;
             const m = activeChecklistMember.value;
             const who = memberLabel(m) ? `${memberLabel(m)} 的` : '你的';
             const ok = await appConfirm(`只會清空${who}勾選，項目保留，其他成員不受影響。`, { title: '重設勾選', danger: true, confirmText: '重設' });
@@ -495,6 +510,7 @@ createApp({
         const isCheckNameInvalid = ref(false);
         const checkModal = reactive({ show: false, mode: 'add', targetId: null, draft: null });
         const openCheckModal = (item = null) => {
+            if (isReadOnly.value) return;
             isCheckNameInvalid.value = false;
             if (item) {
                 checkModal.mode = 'edit'; checkModal.targetId = item.id;
@@ -554,6 +570,7 @@ createApp({
             return exchangeRate.value;
         };
         const addExpense = async () => {
+            if (isReadOnly.value) return;
             if (!newExpense.value.item) { isItemInvalid.value = true; nextTick(() => { itemInputRef.value?.focus(); }); return; }
             if (!newExpense.value.amount) { isAmountInvalid.value = true; nextTick(() => { amountInputRef.value?.focus(); }); return; }
             const rate = await fetchLiveRate(setup.value.currency);
@@ -562,6 +579,7 @@ createApp({
         };
         const expModal = reactive({ show: false, targetId: null, draft: null });
         const openExpModal = (exp) => {
+            if (isReadOnly.value) return;
             expModal.targetId = exp.id;
             expModal.draft = JSON.parse(JSON.stringify(exp));
             if (!expModal.draft.rate) expModal.draft.rate = exchangeRate.value;
@@ -590,7 +608,7 @@ createApp({
         const countryInfoMap = { 'jp': { c: 'JPY', l: 'ja', n: '日文', m: 'google' }, 'kr': { c: 'KRW', l: 'ko', n: '韓文', m: 'naver' }, 'us': { c: 'USD', l: 'en', n: '英文', m: 'google' }, 'cn': { c: 'CNY', l: 'zh-CN', n: '簡中', m: 'amap' }, 'th': { c: 'THB', l: 'th', n: '泰文', m: 'google' }, 'tw': { c: 'TWD', l: 'zh-TW', n: '中文', m: 'google' } };
         const updateRateByCurrency = async () => { const currency = setup.value.currency; if (!currency) return; isRateLoading.value = true; try { if (currency === 'TWD') { setup.value.rate = 1; } else { const rRes = await fetch(`https://api.exchangerate-api.com/v4/latest/${currency}`); const rData = await rRes.json(); if (rData?.rates?.TWD) setup.value.rate = rData.rates.TWD; } } catch (e) { console.error('Fetch rate failed', e); } finally { isRateLoading.value = false; } };
         const detectRate = async () => { if (!setup.value.destination) return; isRateLoading.value = true; try { const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(setup.value.destination)}&limit=1&addressdetails=1`); const geoData = await geoRes.json(); if (geoData?.[0]?.address?.country_code) { const code = geoData[0].address.country_code.toLowerCase(); const info = countryInfoMap[code] || { c: 'USD', l: 'en', n: '英文', m: 'google' }; setup.value.currency = info.c; setup.value.langCode = info.l; setup.value.langName = info.n; setup.value.mapProvider = info.m || 'google'; if (!weather.value.location) weather.value.location = setup.value.destination; if (info.c === 'TWD') setup.value.rate = 1; else { const rRes = await fetch(`https://api.exchangerate-api.com/v4/latest/${info.c}`); const rData = await rRes.json(); if (rData?.rates?.TWD) setup.value.rate = rData.rates.TWD; } } } catch (e) { } finally { isRateLoading.value = false; } };
-        const toggleWeatherEdit = () => { isWeatherEditing.value = !isWeatherEditing.value; if (isWeatherEditing.value) { nextTick(() => weatherInputRef.value?.focus()); } };
+        const toggleWeatherEdit = () => { if (isReadOnly.value) return; isWeatherEditing.value = !isWeatherEditing.value; if (isWeatherEditing.value) { nextTick(() => weatherInputRef.value?.focus()); } };
         const updateWeatherLocation = () => { isWeatherEditing.value = false; if (weather.value.location) { fetchWeather(weather.value.location); } };
         const fetchWeather = async (locName) => { try { weather.value.location = locName; const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locName)}&limit=1`); const geoData = await geoRes.json(); if (geoData?.[0]) { const { lat, lon } = geoData[0]; const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto&forecast_days=16`); const wData = await wRes.json(); weather.value.temp = Math.round(wData.current_weather.temperature); weather.value.icon = getWeatherIcon(wData.current_weather.weathercode); if (wData.daily) weather.value.daily = wData.daily; } } catch (e) { weather.value.temp = '--'; } };
         // 主內容包在 <transition mode="out-in">，切到口袋分頁時容器要等舊視圖淡出後才進 DOM，
@@ -599,11 +617,11 @@ createApp({
         // forceFallback：滑鼠（桌機網頁）預設會走原生 HTML5 拖放，原生拖放的自動捲動很不可靠、且會讓 delay 選項失效；
         // 強制改用 SortableJS 自己模擬的拖曳（跟觸控用同一套機制），forceAutoScrollFallback 的手動捲動才會確實生效。
         const scrollAutoOpts = () => ({ scroll: document.querySelector('main') || true, forceFallback: true, forceAutoScrollFallback: true, scrollSensitivity: 100, scrollSpeed: 15 });
-        const initSortable = () => { const el = document.getElementById('saved-locations-list'); if (!el) return false; if (Sortable.get && Sortable.get(el)) return true; Sortable.create(el, { animation: 150, handle: '.loc-drag-handle', ghostClass: 'sortable-ghost', dragClass: 'sortable-drag', ...scrollAutoOpts(), onEnd: (evt) => { const item = savedLocations.value.splice(evt.oldIndex, 1)[0]; savedLocations.value.splice(evt.newIndex, 0, item); } }); return true; };
+        const initSortable = () => { if (isReadOnly.value) return true; const el = document.getElementById('saved-locations-list'); if (!el) return false; if (Sortable.get && Sortable.get(el)) return true; Sortable.create(el, { animation: 150, handle: '.loc-drag-handle', ghostClass: 'sortable-ghost', dragClass: 'sortable-drag', ...scrollAutoOpts(), onEnd: (evt) => { const item = savedLocations.value.splice(evt.oldIndex, 1)[0]; savedLocations.value.splice(evt.newIndex, 0, item); } }); return true; };
         const initSortableWhenReady = () => { let tries = 0; const tryInit = () => { if (!initSortable() && ++tries < 30) setTimeout(tryInit, 100); }; nextTick(tryInit); };
 
         // 行程項目：長按拖曳排序（桌機按住即可拖，觸控裝置需長按 250ms 才啟動，避免跟滑動捲動衝突）
-        const initItemsSortable = () => { const el = document.getElementById('day-items-list'); if (!el) return false; if (Sortable.get && Sortable.get(el)) return true; Sortable.create(el, { animation: 150, delay: 250, delayOnTouchOnly: true, touchStartThreshold: 5, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag', ...scrollAutoOpts(), onEnd: (evt) => { const day = days.value[currentDayIdx.value]; if (!day) return; const item = day.items.splice(evt.oldIndex, 1)[0]; day.items.splice(evt.newIndex, 0, item); } }); return true; };
+        const initItemsSortable = () => { if (isReadOnly.value) return true; const el = document.getElementById('day-items-list'); if (!el) return false; if (Sortable.get && Sortable.get(el)) return true; Sortable.create(el, { animation: 150, delay: 250, delayOnTouchOnly: true, touchStartThreshold: 5, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag', ...scrollAutoOpts(), onEnd: (evt) => { const day = days.value[currentDayIdx.value]; if (!day) return; const item = day.items.splice(evt.oldIndex, 1)[0]; day.items.splice(evt.newIndex, 0, item); } }); return true; };
         const initItemsSortableWhenReady = () => { let tries = 0; const tryInit = () => { if (!initItemsSortable() && ++tries < 30) setTimeout(tryInit, 100); }; nextTick(tryInit); };
 
         const loadTripList = () => {
@@ -676,6 +694,7 @@ createApp({
         watch(showTripMenu, (v) => { if (v && allTripsStatus.value === 'idle') loadAllTrips(); });
 
         const createNewTrip = () => {
+            if (isReadOnly.value) return;
             ignoreRemoteUpdate = true; // Prevent saving these resets to the current trip
             if (timeout) { clearTimeout(timeout); timeout = null; } // 取消舊旅程待存檔
             isEditing.value = false;
@@ -714,6 +733,7 @@ createApp({
         let setupSnapshot = null;
 
         const openEditModal = () => {
+            if (isReadOnly.value) return;
             const currentTrip = tripList.value.find(t => t.id === currentTripId.value);
             if (currentTrip) setup.value.destination = currentTrip.destination;
             setup.value.days = days.value.length;
@@ -750,6 +770,7 @@ createApp({
         };
 
         const initTrip = async () => {
+            if (isReadOnly.value) return;
             if (!setup.value.destination) { showToast('請先填寫目的地', { icon: 'ph-bold ph-warning' }); return; }
 
             if (isEditing.value && currentTripId.value) {
@@ -851,6 +872,7 @@ createApp({
         // 封存制：全 app 無真刪路徑，只標 archived 狀態（資料永留伺服器，可從「所有旅程」取回）。
         // 可逆動作照站內慣例：不彈確認，直接做＋undo toast（我的旅程、所有旅程兩處卡片共用）。
         const archiveTrip = (id) => {
+            if (isReadOnly.value) return;
             const idx = tripList.value.findIndex(t => t.id === id);
             const meta = idx !== -1 ? tripList.value.splice(idx, 1)[0] : null;
             if (meta) saveTripList();
@@ -879,24 +901,28 @@ createApp({
             }
         };
 
-        const shareTrip = async () => {
+        // readOnly=true 產生的連結多帶一個 view=1，開啟時整個 App 會進唯讀模式（畫面層級鎖住，
+        // 不是資料庫層級的權限隔離——這個 App 沒有後端，Firestore 規則本身無法分讀者/編輯者）
+        const shareTrip = async (readOnly = false) => {
             if (!currentTripId.value) return;
             const url = new URL(window.location.href);
             url.searchParams.set('tripId', currentTripId.value);
+            if (readOnly) { url.searchParams.set('view', '1'); } else { url.searchParams.delete('view'); }
             const shareData = {
                 title: `WeTravel: ${setup.value.destination}`,
-                text: `一起來規劃 ${setup.value.destination} 的行程吧！`,
+                text: readOnly ? `來看看 ${setup.value.destination} 的行程吧！` : `一起來規劃 ${setup.value.destination} 的行程吧！`,
                 url: url.toString()
             };
+            showShareModal.value = false;
 
             if (navigator.share) {
                 try { await navigator.share(shareData); } catch (e) { }
             } else {
                 try {
                     await navigator.clipboard.writeText(url.toString());
-                    showToast('連結已複製！傳給朋友即可共編', { icon: 'ph-bold ph-link' });
+                    showToast(readOnly ? '唯讀連結已複製！傳給朋友即可瀏覽' : '連結已複製！傳給朋友即可共編', { icon: 'ph-bold ph-link' });
                 } catch (e) {
-                    appConfirm('自動複製失敗，請長按下方連結複製分享：', { title: '分享行程', link: url.toString(), showCancel: false, confirmText: '關閉' });
+                    appConfirm('自動複製失敗，請長按下方連結複製分享：', { title: readOnly ? '分享唯讀連結' : '分享行程', link: url.toString(), showCancel: false, confirmText: '關閉' });
                 }
             }
         };
@@ -1167,7 +1193,7 @@ createApp({
             toggleWeatherEdit, isWeatherEditing, updateWeatherLocation, weatherInputRef,
             loadTripList,
             isDataLoading, isLoggedIn, dbError, dbErrorCode, dbErrorMessage, retryConnection, syncStatus,
-            shareTrip, showShareModal,
+            shareTrip, showShareModal, isReadOnly,
             showJoinInput, joinTripUrl, joinTrip,
             dialog, dialogAnswer, toast, undoToast,
             itemModal, openItemModal, saveItemModal, deleteItemFromModal, itemTimeHour, itemTimeMinute,
