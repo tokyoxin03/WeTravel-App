@@ -7,10 +7,10 @@
 // 詳細步驟請見 README.md「自行架設教學」
 // ============================================================
 export const firebaseConfig = {
-    apiKey: "AIzaSyBWxMA4e4yIkAOMQzGqr4ye9MS03dxqz6c",
-    authDomain: "wetravel-app-7fc1b.firebaseapp.com",
-    projectId: "wetravel-app-7fc1b",
-    storageBucket: "wetravel-app-7fc1b.firebasestorage.app",
-    messagingSenderId: "890737448661",
-    appId: "1:890737448661:web:5a9f73456a6b49debcf45c"
+    apiKey: "AIzaSyAgYgNltInwdBFzNyOjwk2ZZOXA4kuVwP0",
+    authDomain: "tokyoxin003.firebaseapp.com",
+    projectId: "tokyoxin003",
+    storageBucket: "tokyoxin003.firebasestorage.app",
+    messagingSenderId: "291410810868",
+    appId: "1:291410810868:web:2216e3eec0b8758dc60ba1"
 };
